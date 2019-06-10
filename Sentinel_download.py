@@ -7,6 +7,7 @@ import math
 import optparse
 from xml.dom import minidom
 from datetime import date
+from datetime import datetime
 
 ###########################################################################
 
@@ -111,14 +112,14 @@ else:
     parser.add_option("--lonmax", dest="lonmax", action="store", type="float",
                       help="max longitude in decimal degrees", default=None)
     parser.add_option("--id", "--start_ingest_date", dest="start_ingest_date", action="store", type="string",
-                      help="start ingestion date, fmt('2015-12-22')", default=None)
+                      help="start ingestion date, fmt('20151222')", default=None)
     parser.add_option("--if", "--end_ingest_date", dest="end_ingest_date", action="store", type="string",
-                      help="end ingestion date, fmt('2015-12-23')", default=None)
-    parser.add_option("-d", "--start_date", dest="start_date", action="store", type="string",
+                      help="end ingestion date, fmt('20151223')", default=None)
+    parser.add_option("-d", "--beginposition", dest="beginposition", action="store", type="string",
                       help="start date, fmt('20151222')", default=None)
     parser.add_option("-l", "--level", dest="level", action="store", type="string",
                       help="L1C,L2A...", default="L1C")
-    parser.add_option("-f", "--end_date", dest="end_date", action="store", type="string",
+    parser.add_option("-f", "--endposition", dest="endposition", action="store", type="string",
                       help="end date, fmt('20151223')", default=None)
     parser.add_option("-o", "--orbit", dest="orbit", action="store", type="int",
                       help="Orbit Number", default=None)
@@ -204,7 +205,7 @@ if options.sentinel == "S2":
     if options.level == "L1C":
         producttype = "S2MSI1C"
     elif options.level == "L2A":
-        producttype = "S2MSI2Ap"
+        producttype = "S2MSI2A"
 if geom == 'point':
     if sys.platform.startswith('linux') or sys.platform.startswith('darwin'):
         query_geom = 'footprint:\\"Intersects(%f,%f)\\"' % (options.lat, options.lon)
@@ -226,12 +227,14 @@ else:
 
 # ingestion date
 if options.start_ingest_date is not None:
-    start_ingest_date = options.start_ingest_date + "T00:00:00.000Z"
+    start_ingest_date = datetime.strptime(options.start_ingest_date,"%Y%m%d").date().isoformat()
+    start_ingest_date = start_ingest_date + "T00:00:00.000Z"
 else:
     start_ingest_date = "2015-06-23T00:00:00.000Z"
 
 if options.end_ingest_date is not None:
-    end_ingest_date = options.end_ingest_date + "T23:59:50.000Z"
+    end_ingest_date = datetime.strptime(options.end_ingest_date,"%Y%m%d").date().isoformat()
+    end_ingest_date = end_ingest_date + "T23:59:59.999Z"
 else:
     end_ingest_date = "NOW"
 
@@ -239,22 +242,31 @@ if options.start_ingest_date is not None or options.end_ingest_date is not None:
     query_date = " ingestiondate:[%s TO %s]" % (start_ingest_date, end_ingest_date)
     query = query + query_date
 
+if options.beginposition == None:
+    beginposition = "2015-06-13T00:00:00.000Z" # Sentinel-2 launch date
+else:
+    beginposition = datetime.strptime(options.beginposition,"%Y%m%d").date().isoformat()
+    beginposition = beginposition + "T00:00:00.000Z"
+
+if options.endposition == None:
+    endposition = date.today().strftime(format='%Y-%m-%d') + "T23:59:59.999Z"
+else:
+    endposition = datetime.strptime(options.endposition,"%Y%m%d").date().isoformat()
+    endposition = endposition + "T23:59:59.999Z"
+    
+if options.beginposition is not None and options.endposition is not None:
+    query_beginperiod = " beginPosition:[%s TO %s]" % (beginposition, endposition)
+    query_endperiod = " endPosition:[%s TO %s]" % (beginposition, endposition)
+    query = query + query_beginperiod + query_endperiod
+
+if options.max_cloud is not None:
+    query_clouds = " cloudcoverpercentage:[0 TO %s]" % (str(options.max_cloud))
+    query = query + query_clouds
 
 if producttype is not None:
     query_producttype = " producttype:%s " % producttype
     query = query + query_producttype
 
-# acquisition date
-
-if options.start_date != None:
-    start_date = options.start_date
-else:
-    start_date = "20150613"  # Sentinel-2 launch date
-
-if options.end_date != None:
-    end_date = options.end_date
-else:
-    end_date = date.today().strftime(format='%Y%m%d')
 
 if options.MaxRecords > 100:
     requests_needed = math.ceil(options.MaxRecords / 100.0)
@@ -301,28 +313,19 @@ for i in range(len(request_list)):
             print("Please choose either S1 or S2")
             sys.exit(-1)
 
-        if date_prod >= start_date and date_prod <= end_date:
+        if date_prod >= beginposition and date_prod <= endposition:
             # print what has been found
             print("\n===============================================")
-            print(date_prod, start_date, end_date)
+            print(date_prod, beginposition, endposition)
             print(filename)
             print(link)
             if options.dhus is True:
                 link = link.replace("apihub", "dhus")
 
-            if options.sentinel.find("S2") >= 0:
-                for node in prod.getElementsByTagName("double"):
-                    (name, field) = list(node.attributes.items())[0]
-                    if field == "cloudcoverpercentage":
-                        cloud = float((node.toxml()).split('>')[1].split('<')[0])
-                        print("cloud percentage = %5.2f %%" % cloud)
-            else:
-                cloud = 0
-
             print("===============================================\n")
 
             # ==================================download  whole product
-            if(cloud < options.max_cloud or (options.sentinel.find("S1") >= 0)) and options.tile is None:
+            if (options.sentinel.find("S1") >= 0) and options.tile is None:
                 commande_wget = '%s %s %s%s/%s "%s"' % (wg, auth, wg_opt, options.write_dir, filename + ".zip", link)
                 # do not download the product if it was already downloaded and unzipped, or if no_download option was selected.
                 unzipped_file_exists = os.path.exists(("%s/%s") % (options.write_dir, filename))
