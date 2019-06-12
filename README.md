@@ -4,18 +4,23 @@ Automated Sentinel data download using Terminal
 
 ### Major changes
 - Adapted to the current format of S2 Copernicus Open Hub queries
+- partially adapted to the current format of S1 Copernicus Open Hub queries (only for IW mode)
 - S2 Start date and end date bug fixed
 - S2 Cloud cover bug fixed
-- S2 L2A-L2Ap bug fixed
+- S2 L2A-L2Ap bug fixed. Please specify level L2Ap for images acquired before 20180326 and L2A for images acquired from 20180326
 - Added new example to README.md
 
 ### New S2 example
-- To download S2L2A product over the specified coordinates (latlon) between 20180501 and 20180830, with less than 30% clouds. The doenload directory will be '/local/downloads'
+- To download S2L2A product over the specified coordinates (latlon) between 20180501 and 20180830, with less than 30% clouds. The download directory will be '/local/downloads'
 
 `python Sentinel_download.py --lat 41.1 --lon -3.2 -d 20180501 -l L2A -f 20180830 -a apihub.txt -m 30 -w /local/downloads -s S2`
 
 - the same download but for max and min coordinates
 `python Sentinel_download.py --latmax 41.1 --latmin 41.0 --lonmax -4.1 --lonmin -4.27 -d 20180501 -l L2A -f 20180801 -a apihub.txt -n -m 30 -w /local/downloads -s S2`
+
+- To download S1 SLC product (IW mode) over the specified coordinates between 20180501 and 20180830.
+
+`python Sentinel_download.py --lat 41.1 --lon -3.2 -d 20180501 -l SLC -f 20180830 -a apihub.txt -w /local/downloads -s S1`
 
 ### Note
 Edit apihub.txt with your personal copernicus username and password before running the script
