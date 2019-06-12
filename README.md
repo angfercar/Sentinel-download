@@ -16,6 +16,7 @@ Automated Sentinel data download using Terminal
 `python Sentinel_download.py --lat 41.1 --lon -3.2 -d 20180501 -l L2A -f 20180830 -a apihub.txt -m 30 -w /local/downloads -s S2`
 
 - the same download but for max and min coordinates
+
 `python Sentinel_download.py --latmax 41.1 --latmin 41.0 --lonmax -4.1 --lonmin -4.27 -d 20180501 -l L2A -f 20180801 -a apihub.txt -m 30 -w /local/downloads -s S2`
 
 - To download S1 SLC product (IW mode) over the specified coordinates between 20180501 and 20180830.
